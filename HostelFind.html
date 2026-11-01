@@ -1,0 +1,719 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>HostelFind</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style id="app-style">
+  body { background: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #0f172a; }
+  .screen { display: none; animation: fade .25s ease; }
+  .screen.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .num { position: absolute; width: 22px; height: 22px; border-radius: 9999px; background: #F97316; color: #fff;
+         font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+         box-shadow: 0 0 0 2px #fff; z-index: 5; }
+  .chip.on { background: #0F766E; color: #fff; border-color: #0F766E; }
+  .toggle-dot { transition: transform .2s; }
+  .scroll-x { overflow-x: auto; }
+  .fld { width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; padding: 8px 12px; font-size: 14px; background: #fff; color: #0f172a; }
+  .fld:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+  .lbl { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+  /* Gradient classes used by the admin colour picker (listed so Tailwind always generates them) */
+  .g-keep { display: none; }
+</style>
+
+<div class="min-h-screen">
+<span class="g-keep from-teal-300 to-emerald-500 from-sky-300 to-blue-500 from-amber-300 to-orange-400 from-rose-300 to-pink-500 from-violet-300 to-purple-500"></span>
+
+<!-- Screen switcher -->
+<nav class="max-w-md mx-auto px-4 pt-4 flex gap-2 text-xs scroll-x" aria-label="Screens">
+  <button data-nav="search"  class="navbtn rounded-full border px-3 py-1.5 whitespace-nowrap">Search</button>
+  <button data-nav="details" class="navbtn rounded-full border px-3 py-1.5 whitespace-nowrap">Details</button>
+  <button data-nav="compare" class="navbtn rounded-full border px-3 py-1.5 whitespace-nowrap">Compare</button>
+  <button data-nav="manager" class="navbtn rounded-full border px-3 py-1.5 whitespace-nowrap">Manager</button>
+  <button data-nav="admin" id="adminNav" hidden class="navbtn rounded-full border border-blue-300 text-blue-900 px-3 py-1.5 whitespace-nowrap">Data</button>
+</nav>
+
+<main class="max-w-md mx-auto my-4 sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-xl overflow-hidden bg-white relative">
+
+  <!-- ============ SCREEN 1: SEARCH & RESULTS ============ -->
+  <section id="search" class="screen active">
+    <header class="px-5 pt-6 pb-5 text-white rounded-b-3xl" style="background:#0F766E">
+      <h1 class="text-2xl font-bold">HostelFind</h1>
+      <p class="text-teal-100 text-sm">Find a place near Makerere</p>
+      <div class="relative mt-4">
+        <span class="num -top-2 -left-2">1</span>
+        <input id="q" placeholder="Search: near Makerere University" aria-label="Search hostels" class="w-full rounded-2xl px-4 py-3 text-slate-800 text-sm outline-none">
+      </div>
+    </header>
+
+    <div class="px-5 pt-4">
+      <p class="samplePill inline-block text-[10px] font-bold tracking-wide text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5" hidden>SAMPLE DATA, NOT REAL LISTINGS</p>
+      <div class="flex gap-2 mt-3 scroll-x pb-2" id="chips">
+        <button data-f="price" class="chip whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-xs">Under UGX 1m</button>
+        <button data-f="walk"  class="chip whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-xs">≤ 10 min walk</button>
+        <button data-f="water" class="chip whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-xs">Water</button>
+        <button data-f="security" class="chip whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-xs">Security</button>
+        <button data-f="wifi"  class="chip whitespace-nowrap rounded-full border border-slate-300 px-3 py-1.5 text-xs">Wi-Fi</button>
+      </div>
+      <p id="count" class="text-xs text-slate-500 mt-1"></p>
+      <div id="cards" class="space-y-4 mt-2 pb-24"></div>
+    </div>
+
+    <div class="sticky bottom-0 px-5 py-3 bg-white/95 border-t border-slate-100 relative">
+      <span class="num -top-2 right-4">3</span>
+      <button id="compareBtn" class="w-full rounded-2xl py-3.5 font-semibold text-white bg-green-600 disabled:opacity-40">Compare selected (0)</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 2: LISTING DETAILS ============ -->
+  <section id="details" class="screen">
+    <header class="px-5 py-4 text-white flex items-center gap-3" style="background:#0F766E">
+      <button data-nav="search" class="text-2xl leading-none" aria-label="Back">←</button>
+      <h2 id="dName" class="font-semibold"></h2>
+    </header>
+    <div class="px-5 py-4 space-y-4">
+      <p class="samplePill inline-block text-[10px] font-bold tracking-wide text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5" hidden>SAMPLE DATA, NOT REAL LISTINGS</p>
+      <div id="dPhotos"></div>
+      <div class="relative">
+        <span class="num -top-2 -left-2">2</span>
+        <span id="dVerified" class="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 ml-3"></span>
+      </div>
+      <div class="rounded-2xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm" id="dPrice"></table>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-2xl bg-teal-50 p-3"><p class="text-slate-500 text-xs">Distance</p><p id="dWalk" class="font-semibold"></p></div>
+        <div class="rounded-2xl bg-teal-50 p-3"><p class="text-slate-500 text-xs">Rooms available</p><p id="dRooms" class="font-semibold"></p></div>
+      </div>
+      <p id="dContact" class="text-sm text-slate-600"></p>
+      <div class="relative space-y-2">
+        <span class="num -top-2 -left-2">4</span>
+        <button data-act="whatsapp" class="w-full rounded-2xl py-3.5 font-semibold text-white bg-green-600">💬 Chat with manager on WhatsApp</button>
+        <button data-act="call" class="w-full rounded-2xl py-3.5 font-semibold border-2 border-teal-700 text-teal-800">📞 Call manager</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 3: COMPARISON ============ -->
+  <section id="compare" class="screen">
+    <header class="px-5 py-4 text-white flex items-center gap-3" style="background:#0F766E">
+      <button data-nav="search" class="text-2xl leading-none" aria-label="Back">←</button>
+      <h2 class="font-semibold">Compare hostels</h2>
+    </header>
+    <div class="px-5 py-4 space-y-4">
+      <p class="samplePill inline-block text-[10px] font-bold tracking-wide text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5" hidden>SAMPLE DATA, NOT REAL LISTINGS</p>
+      <div id="cmpWrap">
+        <div class="rounded-2xl border border-slate-200 overflow-hidden scroll-x"><table class="w-full text-sm" id="cmpTable"></table></div>
+        <div id="cmpActions" class="grid grid-cols-2 gap-3 mt-4"></div>
+      </div>
+      <p id="cmpEmpty" class="text-sm text-slate-500 text-center py-8" hidden>Add at least two hostels to compare them.</p>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 4: MANAGER DASHBOARD ============ -->
+  <section id="manager" class="screen">
+    <header class="px-5 py-5 text-white rounded-b-3xl" style="background:#1E3A8A">
+      <h2 class="text-xl font-bold">HostelFind Manager</h2>
+      <p class="text-blue-200 text-sm">Update availability</p>
+    </header>
+    <div class="px-5 py-4 space-y-4">
+      <p class="samplePill inline-block text-[10px] font-bold tracking-wide text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5" hidden>SAMPLE DATA, NOT REAL LISTINGS</p>
+      <div>
+        <label class="lbl" for="mgrSelect">Hostel</label>
+        <select id="mgrSelect" class="fld"></select>
+      </div>
+      <div id="mgrBody" class="space-y-4"></div>
+      <button data-nav="search" class="w-full text-sm text-slate-500 underline">← Back to student view</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 5: DATA EDITOR (editors only) ============ -->
+  <section id="admin" class="screen">
+    <header class="px-5 py-5 text-white rounded-b-3xl" style="background:#1E3A8A">
+      <h2 class="text-xl font-bold">Hostel data</h2>
+      <p class="text-blue-200 text-sm">Edit mode. Changes save on this device. Download the file to share them.</p>
+    </header>
+    <div id="adminBody" class="px-5 py-4 space-y-4"></div>
+  </section>
+</main>
+
+<footer class="max-w-md mx-auto px-5 pb-10 text-center text-xs text-slate-500 leading-relaxed">
+  Orange numbers match the five features.<br>
+  Group 12 | HostelFind | IST2106 Week 2<br>
+  <span id="modeNote" class="inline-block mt-2"></span>
+</footer>
+
+<div id="toast" role="status" class="fixed left-1/2 -translate-x-1/2 bottom-6 bg-slate-900 text-white text-sm rounded-full px-4 py-2 opacity-0 pointer-events-none transition-opacity z-50"></div>
+</div>
+
+<script type="application/json" id="hostel-data">
+[
+ {
+  "id": "akwata-empola",
+  "name": "AKWATA EMPOLA",
+  "price": 900000,
+  "deposit": 100000,
+  "walk": 4,
+  "verified": "2026-10-20",
+  "contact": "+256 700 000 003",
+  "includes": "Water, security, Wi-Fi, meals",
+  "water": true,
+  "security": true,
+  "wifi": true,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-amber-300 to-orange-400",
+  "confirmedOn": "2026-10-26",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Self-contained",
+    "price": 900000,
+    "vacant": 2
+   }
+  ]
+ },
+ {
+  "id": "apex-girls-hostel",
+  "name": "Apex Girls hostel",
+  "price": 650000,
+  "deposit": 50000,
+  "walk": 6,
+  "verified": "2026-10-12",
+  "contact": "+256 700 000 001",
+  "includes": "Water, security, Wi-Fi",
+  "water": true,
+  "security": true,
+  "wifi": true,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-teal-300 to-emerald-500",
+  "confirmedOn": "2026-10-25",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Single",
+    "price": 650000,
+    "vacant": 3
+   },
+   {
+    "type": "Double",
+    "price": 450000,
+    "vacant": 5
+   },
+   {
+    "type": "Self-contained",
+    "price": 900000,
+    "vacant": 1
+   }
+  ]
+ },
+ {
+  "id": "garden-courts-girls-hostel",
+  "name": "GARDEN COURTS GIRLS HOSTEL",
+  "price": 750000,
+  "deposit": 200000,
+  "walk": 4,
+  "verified": "2026-10-20",
+  "contact": "+256 700 000 003",
+  "includes": "Water, security, Wi-Fi, meals",
+  "water": true,
+  "security": true,
+  "wifi": true,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-amber-300 to-orange-400",
+  "confirmedOn": "2026-10-26",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Self-contained",
+    "price": 900000,
+    "vacant": 2
+   }
+  ]
+ },
+ {
+  "id": "muhika-hostel",
+  "name": "MUHIKA HOSTEL",
+  "price": 1000000,
+  "deposit": 500000,
+  "walk": 4,
+  "verified": "2026-10-20",
+  "contact": "+256 700 000 003",
+  "includes": "Water, security, Wi-Fi, meals",
+  "water": true,
+  "security": true,
+  "wifi": true,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-amber-300 to-orange-400",
+  "confirmedOn": "2026-10-26",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Self-contained",
+    "price": 900000,
+    "vacant": 2
+   }
+  ]
+ },
+ {
+  "id": "mwesigwa-hoatel",
+  "name": "Mwesigwa Hoatel",
+  "price": 480000,
+  "deposit": 40000,
+  "walk": 12,
+  "verified": "2026-10-08",
+  "contact": "+256 700 000 002",
+  "includes": "Water only",
+  "water": true,
+  "security": false,
+  "wifi": false,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-sky-300 to-blue-500",
+  "confirmedOn": "2026-10-24",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Single",
+    "price": 480000,
+    "vacant": 1
+   },
+   {
+    "type": "Double",
+    "price": 350000,
+    "vacant": 3
+   }
+  ]
+ },
+ {
+  "id": "olympia-hostel",
+  "name": "OLYMPIA HOSTEL",
+  "price": 900000,
+  "deposit": 100000,
+  "walk": 4,
+  "verified": "2026-10-20",
+  "contact": "+256 700 000 003",
+  "includes": "Water, security, Wi-Fi, meals",
+  "water": true,
+  "security": true,
+  "wifi": true,
+  "accepting": true,
+  "sample": true,
+  "grad": "from-amber-300 to-orange-400",
+  "confirmedOn": "2026-10-26",
+  "photos": [],
+  "roomTypes": [
+   {
+    "type": "Self-contained",
+    "price": 900000,
+    "vacant": 2
+   }
+  ]
+ }
+]
+</script>
+
+<script>
+const PRISTINE_HTML = document.documentElement.outerHTML;   // page as shipped, before scripts change it
+/* ============ Helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => "UGX " + (Number(n) || 0).toLocaleString("en-US");
+const today = () => new Date().toLocaleDateString("en-CA");              // YYYY-MM-DD
+const fmtDate = iso => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const ago = iso => {
+  if (!iso) return "never";
+  const d = Math.round((new Date(today() + "T00:00:00") - new Date(iso + "T00:00:00")) / 864e5);
+  return d <= 0 ? "today" : d === 1 ? "1 day ago" : d + " days ago";
+};
+const vacant = h => (h.roomTypes || []).reduce((a, r) => a + (Number(r.vacant) || 0), 0);
+const byId = id => hostels.find(h => h.id === id);
+const photoUrl = u => u;   // photos are small images stored inside the file
+const GRADS = { "from-teal-300 to-emerald-500": "Green", "from-sky-300 to-blue-500": "Blue", "from-amber-300 to-orange-400": "Amber", "from-rose-300 to-pink-500": "Rose", "from-violet-300 to-purple-500": "Violet" };
+
+/* ============ State ============ */
+let hostels = [], loaded = true, canWrite = false, dPhoto = 0, pendingReset = false;
+let screen = "search", current = null, mgrId = null, draft = null, draftId = null, pendingDelete = null;
+const selected = [], filters = new Set();
+let query = "", writeChain = Promise.resolve();
+
+/* ============ Toast ============ */
+let tt;
+function toast(msg) {
+  const el = $("#toast"); el.textContent = msg; el.style.opacity = 1;
+  clearTimeout(tt); tt = setTimeout(() => el.style.opacity = 0, 2200);
+}
+
+/* ============ Data: stored inside this file, no server or sign-in ============
+   - Opened as a local file (file://): edit mode is ON. Edits are kept in this browser,
+     and "Download updated file" writes them into a new HostelFind.html.
+   - Opened from any web link (https://): view only. Everyone sees the data saved in the file. */
+const STORE_KEY = "hostelfind.v1";
+const EDITABLE = location.protocol === "file:";
+const VIEW_ONLY = "View only. Open the HostelFind.html file on your computer to edit.";
+const seedData = () => JSON.parse(document.getElementById("hostel-data").textContent);
+function loadSaved() { try { const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function persist() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(hostels)); return true; }
+  catch (e) { toast("Browser storage is full. Remove a few photos."); return false; }
+}
+function commit() { persist(); renderAll(); }
+
+function buildFile() {   // a fresh copy of this page with the current data written in
+  const doc = new DOMParser().parseFromString("<!DOCTYPE html>" + PRISTINE_HTML, "text/html");
+  doc.head.querySelectorAll("style:not(#app-style)").forEach(n => n.remove());
+  doc.getElementById("hostel-data").textContent = JSON.stringify(hostels).replace(/</g, "\\u003c");
+  return "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+}
+function downloadFile() {
+  const blob = new Blob([buildFile()], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "HostelFind.html";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast("Downloaded HostelFind.html with your changes");
+}
+
+/* ============ Navigation ============ */
+function show(id) {
+  if (id === "admin" && !canWrite) return;
+  screen = id;
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+  document.querySelectorAll(".navbtn").forEach(b => {
+    const on = b.dataset.nav === id;
+    b.classList.toggle("bg-teal-700", on); b.classList.toggle("text-white", on);
+  });
+  renderAll();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderAll() {
+  document.querySelectorAll(".samplePill").forEach(p => p.hidden = !hostels.some(h => h.sample));
+  renderCards(); updateCompareBtn();
+  if (screen === "details") renderDetails();
+  if (screen === "compare") renderCompare();
+  if (screen === "manager") renderManager();
+  if (screen === "admin") renderAdmin();
+}
+
+/* ============ Screen 1: search ============ */
+function passes(h) {
+  const q = query.trim().toLowerCase();
+  const text = !q || q.includes("near makerere") || (h.name + " " + (h.includes || "")).toLowerCase().includes(q);
+  return text && (!filters.has("price") || h.price < 1000000) && (!filters.has("walk") || h.walk <= 10) &&
+         (!filters.has("water") || h.water) && (!filters.has("security") || h.security) && (!filters.has("wifi") || h.wifi);
+}
+function renderCards() {
+  const box = $("#cards");
+  if (!loaded) { box.innerHTML = '<p class="text-sm text-slate-500 text-center py-8">Loading hostels…</p>'; $("#count").textContent = ""; return; }
+  if (!hostels.length) {
+    box.innerHTML = `<div class="text-center py-8"><p class="text-sm text-slate-600 font-medium">No hostels listed yet</p>
+      <p class="text-xs text-slate-500 mt-1">${canWrite ? 'Open the Data tab to add the first one.' : 'Check back soon.'}</p></div>`;
+    $("#count").textContent = ""; return;
+  }
+  const list = hostels.filter(passes);
+  $("#count").textContent = `${list.length} place${list.length === 1 ? "" : "s"} found`;
+  box.innerHTML = list.length ? list.map((h, i) => {
+    const n = vacant(h);
+    const status = h.accepting === false ? '<span class="text-red-600">Not accepting students</span>'
+      : n > 0 ? `<span class="text-teal-800 font-medium">Vacant: ${n} · confirmed ${ago(h.confirmedOn)}</span>` : '<span class="text-orange-600 font-medium">Full</span>';
+    return `
+    <article class="rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
+      ${i === 0 ? '<span class="num top-2 left-2">2</span>' : ''}
+      <div class="relative overflow-hidden h-32 bg-gradient-to-br ${esc(h.grad || "from-teal-300 to-emerald-500")} flex items-center justify-center text-5xl cursor-pointer" data-act="open" data-id="${esc(h.id)}">${(h.photos || [])[0] ? `<img src="${esc(photoUrl(h.photos[0]))}" alt="${esc(h.name)}" class="absolute inset-0 w-full h-full object-cover">` : `🏠<span class="absolute top-2 right-2 text-[10px] bg-white/90 rounded-full px-2 py-0.5 font-semibold text-slate-600">Photo placeholder</span>`}
+      </div>
+      <div class="p-4">
+        <div class="flex justify-between items-start gap-2 cursor-pointer" data-act="open" data-id="${esc(h.id)}">
+          <h3 class="font-semibold">${esc(h.name)}</h3>
+          ${h.verified ? '<span class="text-[11px] bg-green-100 text-green-800 font-semibold rounded-full px-2 py-1 whitespace-nowrap">✔ Verified</span>'
+                       : '<span class="text-[11px] bg-orange-100 text-orange-700 font-semibold rounded-full px-2 py-1 whitespace-nowrap">Not verified yet</span>'}
+        </div>
+        <p class="text-sm text-slate-600 mt-1">${fmt(h.price)} / semester · 🚶 ${esc(h.walk)} min walk</p>
+        <p class="text-xs mt-1">${status}</p>
+        <label class="mt-3 flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" class="w-4 h-4 accent-green-600" data-sel="${esc(h.id)}" ${selected.includes(h.id) ? "checked" : ""}> Compare
+        </label>
+      </div>
+    </article>`;
+  }).join("") : '<p class="text-sm text-slate-500 text-center py-8">No hostels match these filters.</p>';
+}
+function updateCompareBtn() {
+  const live = selected.filter(byId);
+  selected.length = 0; selected.push(...live);
+  $("#compareBtn").textContent = `Compare selected (${selected.length})`;
+  $("#compareBtn").disabled = selected.length < 2;
+}
+
+/* ============ Screen 2: details ============ */
+function renderDetails() {
+  const h = byId(current);
+  if (!h) { show("search"); return; }
+  $("#dName").textContent = h.name;
+  const g = esc(h.grad || "from-teal-300 to-emerald-500");
+  const ph = h.photos || [];
+  if (dPhoto >= ph.length) dPhoto = 0;
+  if (ph.length) $("#dPhotos").innerHTML = `
+    <img src="${esc(photoUrl(ph[dPhoto]))}" alt="${esc(h.name)} photo ${dPhoto + 1}" class="h-44 w-full rounded-3xl object-cover">
+    ${ph.length > 1 ? `<div class="grid grid-cols-4 gap-2 mt-2">${ph.map((p, i) => `<button data-act="photo" data-i="${i}" aria-label="Show photo ${i + 1}" class="h-16 rounded-2xl overflow-hidden ${i === dPhoto ? "ring-2 ring-teal-700" : "opacity-70"}"><img src="${esc(photoUrl(p))}" alt="" class="w-full h-full object-cover"></button>`).join("")}</div>` : ""}`;
+  else $("#dPhotos").innerHTML = `
+    <div class="h-44 rounded-3xl bg-gradient-to-br ${g} flex items-center justify-center text-6xl">🏠</div>
+    <div class="grid grid-cols-3 gap-2 mt-2">
+      <div class="h-16 rounded-2xl bg-gradient-to-br ${g} opacity-70 flex items-center justify-center text-2xl">🛏️</div>
+      <div class="h-16 rounded-2xl bg-gradient-to-br ${g} opacity-70 flex items-center justify-center text-2xl">🚿</div>
+      <div class="h-16 rounded-2xl bg-gradient-to-br ${g} opacity-70 flex items-center justify-center text-2xl">🌳</div>
+    </div>`;
+  const v = $("#dVerified");
+  v.textContent = h.verified ? "✔ Verified on " + fmtDate(h.verified) : "Not verified yet";
+  v.className = "inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 ml-3 " + (h.verified ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-700");
+  const rows = [["Rent per semester", fmt(h.price)], ["Security deposit", fmt(h.deposit)], ["Includes", h.includes || "None listed"], ["First payment", fmt((+h.price || 0) + (+h.deposit || 0))]];
+  $("#dPrice").innerHTML = rows.map((r, i) =>
+    `<tr class="${i === 3 ? "bg-teal-50 font-semibold" : "border-b border-slate-100"}"><td class="p-3">${r[0]}</td><td class="p-3 text-right">${esc(r[1])}</td></tr>`).join("");
+  $("#dWalk").textContent = h.walk + " min walk to Makerere";
+  $("#dRooms").textContent = vacant(h) + " vacant · confirmed " + ago(h.confirmedOn);
+  $("#dContact").textContent = h.contact ? "Manager: " + h.contact : "";
+}
+
+/* ============ Screen 3: compare ============ */
+function renderCompare() {
+  const ids = selected.length === 2 ? selected : hostels.slice(0, 2).map(h => h.id);
+  const two = ids.length === 2;
+  $("#cmpWrap").hidden = !two; $("#cmpEmpty").hidden = two;
+  if (!two) return;
+  const [a, b] = ids.map(byId);
+  const rows = [
+    ["Rent", h => fmt(h.price)], ["Includes", h => h.includes || "None listed"], ["Walk time", h => h.walk + " min"],
+    ["Verified", h => h.verified ? "✔ " + fmtDate(h.verified) : "Not yet"], ["Vacant rooms", h => vacant(h)], ["Contact", h => h.contact || "–"]
+  ];
+  $("#cmpTable").innerHTML =
+    `<thead class="bg-teal-700 text-white text-xs"><tr><th class="p-3"></th><th class="p-3 text-left">${esc(a.name)}</th><th class="p-3 text-left">${esc(b.name)}</th></tr></thead><tbody>` +
+    rows.map(r => `<tr class="border-b border-slate-100"><td class="p-3 text-slate-500 text-xs">${r[0]}</td><td class="p-3">${esc(r[1](a))}</td><td class="p-3">${esc(r[1](b))}</td></tr>`).join("") + "</tbody>";
+  $("#cmpActions").innerHTML = [a, b].map(h => `
+    <div class="space-y-2">
+      <button class="w-full rounded-2xl py-2.5 text-sm font-semibold text-white" style="background:#0F766E" data-act="open" data-id="${esc(h.id)}">Open ${esc(h.name.split(" ")[0])}</button>
+      <button class="w-full rounded-2xl py-2.5 text-sm font-semibold border border-red-300 text-red-600" data-act="unselect" data-id="${esc(h.id)}">Remove</button>
+    </div>`).join("");
+}
+
+/* ============ Screen 4: manager ============ */
+function renderManager() {
+  const sel = $("#mgrSelect");
+  if (!byId(mgrId)) mgrId = hostels[0]?.id ?? null;
+  sel.innerHTML = hostels.map(h => `<option value="${esc(h.id)}" ${h.id === mgrId ? "selected" : ""}>${esc(h.name)}</option>`).join("");
+  const h = byId(mgrId), body = $("#mgrBody");
+  if (!h) { body.innerHTML = '<p class="text-sm text-slate-500 text-center py-6">No hostels to manage yet.</p>'; return; }
+  const acc = h.accepting !== false;
+  body.innerHTML = `
+    <div class="rounded-2xl border border-slate-200 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-slate-500 text-xs"><tr><th class="text-left p-3">Room type</th><th class="text-left p-3">Price / sem</th><th class="text-left p-3">Vacant</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          ${(h.roomTypes || []).map((r, i) => `<tr><td class="p-3">${esc(r.type)}</td><td class="p-3">${fmt(r.price)}</td>
+            <td class="p-3"><span class="inline-flex items-center gap-2">
+              <button data-act="vac" data-i="${i}" data-d="-1" class="w-7 h-7 rounded-full border border-slate-300 leading-none" aria-label="One fewer ${esc(r.type)} vacant">−</button>
+              <span class="font-semibold w-5 text-center">${Number(r.vacant) || 0}</span>
+              <button data-act="vac" data-i="${i}" data-d="1" class="w-7 h-7 rounded-full border border-slate-300 leading-none" aria-label="One more ${esc(r.type)} vacant">+</button>
+            </span></td></tr>`).join("") || '<tr><td class="p-3 text-slate-500" colspan="3">No room types yet. Add them in the Data tab.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+      <span class="text-sm font-medium">Accepting new students</span>
+      <button data-act="accept" role="switch" aria-checked="${acc}" aria-label="Accepting new students" class="w-12 h-7 rounded-full ${acc ? "bg-green-600" : "bg-slate-300"} p-1 transition-colors">
+        <span class="toggle-dot block w-5 h-5 bg-white rounded-full ${acc ? "translate-x-5" : ""}"></span>
+      </button>
+    </div>
+    <p class="text-xs text-slate-500">Last confirmed: ${ago(h.confirmedOn)}. Students see this date on your listing.</p>
+    <div class="relative space-y-2">
+      <span class="num -top-2 -left-2">5</span>
+      <button data-act="confirm" class="w-full rounded-2xl py-5 text-lg font-bold text-white" style="background:#1E3A8A">Confirm availability today</button>
+      <button data-act="editThis" class="w-full rounded-2xl py-3.5 font-semibold border-2 border-blue-900 text-blue-900">Edit photos and facilities</button>
+    </div>`;
+}
+
+/* ============ Screen 5: data editor ============ */
+const blank = () => ({ name: "", price: 500000, deposit: 50000, walk: 10, verified: "", contact: "", includes: "",
+  water: true, security: false, wifi: false, accepting: true, sample: false, grad: "from-teal-300 to-emerald-500",
+  confirmedOn: "", photos: [], roomTypes: [{ type: "Single", price: 500000, vacant: 1 }] });
+
+function renderAdmin() {
+  const box = $("#adminBody");
+  if (!draft) {
+    box.innerHTML = `
+      <button data-act="new" class="w-full rounded-2xl py-3 font-semibold text-white" style="background:#1E3A8A">+ Add a hostel</button>
+      <div class="rounded-2xl bg-blue-50 p-3 text-xs text-blue-900 leading-relaxed">Your edits are saved in this browser. To publish them, tap <b>Download updated file</b> and upload that new HostelFind.html to your link, or send it to your group.</div>
+      <div class="grid grid-cols-2 gap-3">
+        <button data-act="download" class="rounded-2xl py-2.5 text-sm font-semibold border-2 border-blue-900 text-blue-900">Download updated file</button>
+        <button data-act="reset" class="rounded-2xl py-2.5 text-sm font-semibold border ${pendingReset ? "bg-red-600 text-white border-red-600" : "border-slate-300 text-slate-600"}">${pendingReset ? "Confirm reset" : "Reset to original"}</button>
+      </div>
+      <div class="rounded-2xl border border-slate-200 divide-y divide-slate-100">
+        ${hostels.length ? hostels.map(h => `
+          <div class="p-3 flex items-center gap-3">
+            <div class="flex-1 min-w-0"><p class="font-medium text-sm truncate">${esc(h.name)}</p>
+              <p class="text-xs text-slate-500">${fmt(h.price)} · ${esc(h.walk)} min · ${vacant(h)} vacant</p></div>
+            <button data-act="edit" data-id="${esc(h.id)}" class="text-sm rounded-xl border border-blue-900 text-blue-900 px-3 py-1.5">Edit</button>
+            <button data-act="del" data-id="${esc(h.id)}" class="text-sm rounded-xl border px-3 py-1.5 ${pendingDelete === h.id ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-600"}">${pendingDelete === h.id ? "Confirm" : "Delete"}</button>
+          </div>`).join("") : '<p class="p-5 text-sm text-slate-500 text-center">No hostels yet. Add the first one above.</p>'}
+      </div>
+      <button data-nav="search" class="w-full text-sm text-slate-500 underline">← Back to student view</button>`;
+    return;
+  }
+  const d = draft, t = (f, label, type = "text", extra = "") =>
+    `<div><label class="lbl" for="f_${f}">${label}</label><input id="f_${f}" class="fld" type="${type}" data-f="${f}" value="${esc(d[f])}" ${extra}></div>`;
+  const chk = (f, label) => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="f_${f}" class="w-4 h-4 accent-teal-700" data-f="${f}" ${d[f] ? "checked" : ""}> ${label}</label>`;
+  box.innerHTML = `
+    <h3 class="font-semibold">${draftId ? "Edit hostel" : "New hostel"}</h3>
+    ${t("name", "Hostel name")}
+    <div class="grid grid-cols-2 gap-3">${t("price", "Rent per semester (UGX)", "number", 'min="0" step="10000" inputmode="numeric"')}${t("deposit", "Security deposit (UGX)", "number", 'min="0" step="10000" inputmode="numeric"')}</div>
+    <div class="grid grid-cols-2 gap-3">${t("walk", "Walk to campus (min)", "number", 'min="0" inputmode="numeric"')}${t("verified", "Verified on (blank if not)", "date")}</div>
+    ${t("includes", "What rent includes")}
+    ${t("contact", "Manager phone")}
+    <div class="grid grid-cols-2 gap-2">${chk("water", "Water")}${chk("security", "Security")}${chk("wifi", "Wi-Fi")}${chk("accepting", "Accepting students")}</div>
+    <div><label class="lbl" for="f_grad">Placeholder colour</label>
+      <select id="f_grad" class="fld" data-f="grad">${Object.entries(GRADS).map(([k, v]) => `<option value="${k}" ${d.grad === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <div>
+      <p class="lbl">Photos (up to 4, the first is the cover)</p>
+      <div class="grid grid-cols-3 gap-2">${d.photos.map((p, i) => `<div class="relative h-20 rounded-xl overflow-hidden bg-slate-100"><img src="${esc(photoUrl(p))}" alt="Photo ${i + 1}" class="w-full h-full object-cover"><button data-act="rmPhoto" data-i="${i}" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs" aria-label="Remove photo ${i + 1}">✕</button></div>`).join("")}</div>
+      ${EDITABLE ? `<label for="f_photos" class="mt-2 inline-block text-sm text-blue-900 underline cursor-pointer">+ Add photos</label><input id="f_photos" type="file" accept="image/*" multiple class="sr-only">` : '<p class="text-xs text-slate-500 mt-1">Photo upload is not available in this view.</p>'}
+    </div>
+    <div>
+      <p class="lbl">Room types</p>
+      <div class="space-y-2">
+        ${d.roomTypes.map((r, i) => `<div class="grid grid-cols-[1fr_1fr_64px_auto] gap-2 items-end">
+          <input class="fld" aria-label="Room type" data-r="${i}" data-rf="type" value="${esc(r.type)}" placeholder="Single">
+          <input class="fld" aria-label="Price" type="number" min="0" step="10000" data-r="${i}" data-rf="price" value="${esc(r.price)}">
+          <input class="fld" aria-label="Vacant" type="number" min="0" data-r="${i}" data-rf="vacant" value="${esc(r.vacant)}">
+          <button data-act="rmRoom" data-i="${i}" class="h-[38px] px-2 text-red-600" aria-label="Remove room type">✕</button></div>`).join("")}
+      </div>
+      <button data-act="addRoom" class="mt-2 text-sm text-blue-900 underline">+ Add room type</button>
+    </div>
+    ${chk("sample", "Mark as sample data (shows the “not real listings” label)")}
+    <div class="flex gap-3 pt-2">
+      <button data-act="saveDraft" class="flex-1 rounded-2xl py-3 font-semibold text-white" style="background:#1E3A8A">Save hostel</button>
+      <button data-act="cancelDraft" class="flex-1 rounded-2xl py-3 font-semibold border-2 border-slate-300 text-slate-700">Cancel</button>
+    </div>`;
+}
+
+/* ============ Events ============ */
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act],[data-nav],[data-f]");
+  if (!t) return;
+  if (t.dataset.nav) return show(t.dataset.nav);
+  if (t.classList.contains("chip")) {
+    const f = t.dataset.f; filters.has(f) ? filters.delete(f) : filters.add(f);
+    t.classList.toggle("on"); return renderCards();
+  }
+  const a = t.dataset.act, id = t.dataset.id;
+  if (a === "open") { current = id; dPhoto = 0; return show("details"); }
+  if (a === "photo") { dPhoto = +t.dataset.i; return renderDetails(); }
+  if (a === "rmPhoto") { draft.photos.splice(+t.dataset.i, 1); return renderAdmin(); }
+  if (a === "unselect") { const i = selected.indexOf(id); if (i >= 0) selected.splice(i, 1); toast("Removed from comparison"); return show("search"); }
+  if (a === "whatsapp") return toast("Opens a WhatsApp chat with " + (byId(current)?.contact || "the manager"));
+  if (a === "call") return toast("Calls " + (byId(current)?.contact || "the manager"));
+  if (["vac", "accept", "confirm", "editThis"].includes(a) && !canWrite) return toast(VIEW_ONLY);
+  const h = byId(mgrId);
+  if (a === "vac" && h) {
+    const rt = (h.roomTypes || []).map((r, i) => i === +t.dataset.i ? { ...r, vacant: Math.max(0, (+r.vacant || 0) + +t.dataset.d) } : r);
+    h.roomTypes = rt; return commit();
+  }
+  if (a === "accept" && h) {
+    const on = h.accepting === false; h.accepting = on; commit();
+    return toast(on ? "Accepting new students" : "Not accepting new students");
+  }
+  if (a === "confirm" && h) {
+    h.confirmedOn = today(); commit();
+    return toast("Availability confirmed for today ✓");
+  }
+  if (a === "editThis") return startEdit(mgrId);
+  /* data editor */
+  if (a === "download") return downloadFile();
+  if (a === "reset") {
+    if (!pendingReset) { pendingReset = true; return renderAdmin(); }
+    pendingReset = false; hostels = seedData(); commit(); return toast("Restored the original data");
+  }
+  if (a === "new") { draft = blank(); draftId = null; return renderAdmin(); }
+  if (a === "edit") return startEdit(id);
+  if (a === "del") {
+    if (pendingDelete !== id) { pendingDelete = id; return renderAdmin(); }
+    pendingDelete = null; hostels = hostels.filter(x => x.id !== id); commit();
+    return toast("Hostel deleted");
+  }
+  if (a === "addRoom") { draft.roomTypes.push({ type: "", price: draft.price, vacant: 0 }); return renderAdmin(); }
+  if (a === "rmRoom") { draft.roomTypes.splice(+t.dataset.i, 1); return renderAdmin(); }
+  if (a === "cancelDraft") { draft = null; draftId = null; return renderAdmin(); }
+  if (a === "saveDraft") return saveDraft();
+});
+
+async function shrink(file) {   // resize big phone photos before upload so pages load fast
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.7);
+  } catch (e) { return null; }
+}
+async function uploadPhotos(input) {
+  const files = [...input.files].filter(f => f.type.startsWith("image/")); input.value = "";
+  if (!canWrite || !draft || !files.length) return;
+  const room = 4 - draft.photos.length;
+  if (room <= 0) return toast("Up to 4 photos per hostel");
+  toast("Uploading photos…");
+  for (const f of files.slice(0, room)) {
+    try { const u = await shrink(f); if (!u) throw new Error("not an image"); draft.photos.push(u); }
+    catch (err) { toast("Could not read that photo"); break; }
+  }
+  renderAdmin();
+}
+function startEdit(id) {
+  const h = byId(id); if (!h) return;
+  const { id: _omit, ...rest } = h;
+  draft = { ...blank(), ...JSON.parse(JSON.stringify(rest)) }; draftId = id;
+  show("admin");
+}
+async function saveDraft() {
+  if (!canWrite) return toast(VIEW_ONLY);
+  const d = draft;
+  if (!d.name.trim()) { toast("Enter a hostel name first"); $("#f_name").focus(); return; }
+  const data = {
+    name: d.name.trim(), price: +d.price || 0, deposit: +d.deposit || 0, walk: +d.walk || 0,
+    verified: d.verified || "", contact: d.contact.trim(), includes: d.includes.trim(),
+    water: !!d.water, security: !!d.security, wifi: !!d.wifi, accepting: !!d.accepting, sample: !!d.sample, grad: d.grad,
+    confirmedOn: d.confirmedOn || "", photos: (d.photos || []).slice(0, 4),
+    roomTypes: d.roomTypes.filter(r => String(r.type).trim()).map(r => ({ type: String(r.type).trim(), price: +r.price || 0, vacant: Math.max(0, +r.vacant || 0) }))
+  };
+  if (draftId) hostels = hostels.map(h => h.id === draftId ? { ...data, id: draftId } : h);
+  else hostels.push({ ...data, id: "h" + Date.now().toString(36) });
+  hostels.sort((x, y) => x.name.localeCompare(y.name));
+  draft = null; draftId = null; commit(); toast("Hostel saved");
+}
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (!draft) return;
+  if (el.dataset.f && el.closest("#adminBody")) draft[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+  else if (el.dataset.rf) draft.roomTypes[+el.dataset.r][el.dataset.rf] = el.value;
+});
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.dataset.sel) {
+    const id = el.dataset.sel, i = selected.indexOf(id);
+    if (el.checked && i < 0) { if (selected.length === 2) selected.shift(); selected.push(id); }
+    if (!el.checked && i >= 0) selected.splice(i, 1);
+    renderCards(); updateCompareBtn();
+  }
+  if (el.id === "mgrSelect") { mgrId = el.value; renderManager(); }
+  if (el.id === "f_photos") uploadPhotos(el);
+});
+$("#q").addEventListener("input", e => { query = e.target.value; renderCards(); });
+$("#compareBtn").addEventListener("click", () => show("compare"));
+
+/* ============ Init ============ */
+canWrite = EDITABLE;
+hostels = (EDITABLE && loadSaved()) || seedData();
+$("#adminNav").hidden = !EDITABLE;
+$("#modeNote").textContent = EDITABLE ? "Edit mode: you opened this file on your computer." : "";
+show("search");
+</script>
+
+</body></html>
